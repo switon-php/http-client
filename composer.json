@@ -1,0 +1,69 @@
+{
+    "name": "switon/http-client",
+    "description": "HTTP client contract with JSON-first helpers, typed failures, and pooled engines for Switon Framework",
+    "type": "library",
+    "keywords": [
+        "switon",
+        "http",
+        "client",
+        "requests"
+    ],
+    "homepage": "https://github.com/switon-php/http-client",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "switon",
+            "email": "admin@switon.dev"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/switon-php/http-client",
+        "issues": "https://github.com/switon-php/http-client/issues",
+        "docs": "https://docs.switon.dev/latest/http-client"
+    },
+    "require": {
+        "php": ">=8.3",
+        "ext-curl": "*",
+        "psr/event-dispatcher": "^1.0",
+        "switon/command": "^1.0",
+        "switon/core": "^1.0",
+        "switon/event": "^1.0",
+        "switon/pool": "^1.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.0",
+        "switon/testing": "^1.0",
+        "phpstan/extension-installer": "^1.4"
+    },
+    "config": {
+        "allow-plugins": {
+            "switon/composer-extra": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Switon\\HttpClient\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Switon\\HttpClient\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "phpstan": "@php vendor/bin/phpstan analyse",
+        "test:unit": "@php vendor/bin/phpunit --configuration tests/phpunit.xml.dist --testsuite=unit --display-deprecations --display-phpunit-notices",
+        "test": "@php vendor/bin/phpunit --configuration tests/phpunit.xml.dist --testsuite=all --display-deprecations --display-phpunit-notices"
+    },
+    "extra": {
+        "switon": {
+            "commands": [
+                "Switon\\HttpClient\\Command\\DateCommand"
+            ]
+        },
+        "branch-alias": {
+            "dev-dev": "1.0.x-dev"
+        }
+    }
+}
