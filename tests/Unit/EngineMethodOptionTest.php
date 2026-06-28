@@ -32,10 +32,10 @@ class EngineMethodOptionTest extends TestCase
 
     protected function makeEngine(FakeCurl $curl): Engine
     {
-        return $this->make(Engine::class, [
+        return $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
     }
 
     public function testGetDoesNotSetMethodSpecificCurlOptions(): void

@@ -14,8 +14,13 @@ namespace Switon\HttpClient;
  * @see \Switon\HttpClient\Response
  * @see \Switon\HttpClient\HttpClient Typical consumer
  */
-interface EngineInterface
+interface EngineInterface extends \Switon\Core\OwnerAwareInterface
 {
+    /**
+     * Return the HTTP client that owns this engine in the pool.
+     */
+    public function getOwner(): HttpClientInterface;
+
     /**
      * Execute one request and return a parsed response object.
      *

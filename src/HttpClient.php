@@ -337,7 +337,7 @@ class HttpClient implements HttpClientInterface
     {
         $engine_id = $this->resolveEngineId($request);
         if (!$this->poolManager->exists($this, $engine_id)) {
-            $this->poolManager->add($this, [EngineInterface::class], $this->pool_size, $engine_id);
+            $this->poolManager->add($this, [EngineInterface::class, ['owner' => $this]], $this->pool_size, $engine_id);
         }
 
         /** @var EngineInterface $engine */

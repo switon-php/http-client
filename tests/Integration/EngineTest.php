@@ -69,10 +69,10 @@ class EngineTest extends TestCase
         $this->pathAlias = new PathAlias();
 
         // Create Engine instance with dependency injection via container
-        $this->engine = $this->make(Engine::class, [
+        $this->engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->pathAlias,
             'curl' => new \Switon\HttpClient\Curl(),
-        ]);
+        ]));
     }
 
     protected function getTestServerUrl(): string

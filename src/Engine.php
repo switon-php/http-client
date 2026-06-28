@@ -61,6 +61,7 @@ use const CURLINFO_TOTAL_TIME;
  */
 class Engine implements EngineInterface
 {
+    #[Autowired] protected HttpClientInterface $owner;
     #[Autowired] protected PathAliasInterface $pathAlias;
     #[Autowired] protected CurlInterface $curl;
 
@@ -79,6 +80,11 @@ class Engine implements EngineInterface
 
     /** Reusable cURL handle kept for connection reuse between pooled requests. */
     protected mixed $handle = null;
+
+    public function getOwner(): HttpClientInterface
+    {
+        return $this->owner;
+    }
 
     public function __destruct()
     {

@@ -41,10 +41,10 @@ class EngineTlsOptionTest extends TestCase
             ->with('@runtime/certs/ca.pem')
             ->willReturn('/abs/runtime/certs/ca.pem');
 
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $pathAlias,
             'curl' => $curl,
-        ]);
+        ]));
 
         $engine->request($this->makeRequest(['cafile' => '@runtime/certs/ca.pem']), null);
 
@@ -56,10 +56,10 @@ class EngineTlsOptionTest extends TestCase
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
 
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $engine->request($this->makeRequest(['verify_peer' => false]), null);
 
@@ -75,10 +75,10 @@ class EngineTlsOptionTest extends TestCase
         $pathAlias = $this->createMock(PathAliasInterface::class);
         $pathAlias->expects($this->never())->method('resolve');
 
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $pathAlias,
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest([
             'verify_peer' => true,
@@ -103,10 +103,10 @@ class EngineTlsOptionTest extends TestCase
             ->with('@runtime/certs/custom.pem')
             ->willReturn('/abs/runtime/certs/custom.pem');
 
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $pathAlias,
             'curl' => $curl,
-        ]);
+        ]));
 
         $engine->request($this->makeRequest([
             'cafile' => '@runtime/certs/custom.pem',
@@ -129,10 +129,10 @@ class EngineTlsOptionTest extends TestCase
             ->with('@runtime/certs/strict.pem')
             ->willReturn('/abs/runtime/certs/strict.pem');
 
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $pathAlias,
             'curl' => $curl,
-        ]);
+        ]));
 
         $engine->request($this->makeRequest([
             'cafile' => '@runtime/certs/strict.pem',
@@ -148,10 +148,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $engine->request($request, null);
@@ -164,10 +164,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $request->setHeader('Accept-Encoding', 'br');
@@ -182,10 +182,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $request->setHeader('accept-encoding', 'br');
@@ -200,10 +200,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = new Request('GET', 'https://example.com', null, [], [
             'timeout' => 3,
@@ -222,10 +222,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = new Request('GET', 'https://example.com', null, [], [
             'timeout' => 4,
@@ -243,10 +243,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $engine->request($request, null);
@@ -263,10 +263,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $request->setHeader('X-Trace', 'abc');
@@ -280,10 +280,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $request->setHeader(0, 'X-Raw: yes');
@@ -297,10 +297,10 @@ class EngineTlsOptionTest extends TestCase
     {
         $curl = new FakeCurl();
         $this->primeSuccess($curl);
-        $engine = $this->make(Engine::class, [
+        $engine = $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
 
         $request = $this->makeRequest();
         $engine->request($request, null);

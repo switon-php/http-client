@@ -27,7 +27,7 @@ class EngineProxyTest extends TestCase
             $parameters['proxies'] = $proxies;
         }
 
-        return $this->make(Engine::class, $parameters);
+        return $this->make(Engine::class, $this->engineParameters($parameters));
     }
 
     protected function makeRequest(string $proxy): Request

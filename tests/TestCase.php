@@ -6,6 +6,8 @@ namespace Switon\HttpClient\Tests;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Switon\HttpClient\HttpClientInterface;
+use Switon\HttpClient\Tests\Fixtures\StubHttpClient;
 use Switon\HttpClient\EngineInterface;
 use Switon\Pooling\PoolManagerInterface;
 use Switon\Testing\TestCase as BaseTestCase;
@@ -36,10 +38,13 @@ abstract class TestCase extends BaseTestCase
     protected EventDispatcherInterface|MockObject $eventDispatcher;
     protected PoolManagerInterface|MockObject $poolManager;
     protected EngineInterface|MockObject $engine;
+    protected HttpClientInterface $httpClientOwner;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->httpClientOwner = new StubHttpClient();
 
         // Create stub event dispatcher (use createStub since most tests don't need expectations)
         // Tests that need to verify event dispatching will replace this with a mock
@@ -52,6 +57,11 @@ abstract class TestCase extends BaseTestCase
         // Create stub engine (use createStub since most tests don't need expectations)
         // Tests that need to verify engine calls will replace this with a mock
         $this->engine = $this->createStub(EngineInterface::class);
+    }
+
+    protected function engineParameters(array $parameters = []): array
+    {
+        return ['owner' => $this->httpClientOwner] + $parameters;
     }
 
     protected function tearDown(): void

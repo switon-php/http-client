@@ -20,10 +20,10 @@ class EngineCurlErrorTest extends TestCase
 {
     protected function makeEngineWithFakeCurl(FakeCurl $curl): Engine
     {
-        return $this->make(Engine::class, [
+        return $this->make(Engine::class, $this->engineParameters([
             'pathAlias' => $this->createStub(PathAliasInterface::class),
             'curl' => $curl,
-        ]);
+        ]));
     }
 
     protected function makeRequest(): Request
