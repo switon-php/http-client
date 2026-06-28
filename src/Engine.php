@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Switon\HttpClient;
 
 use Switon\Core\Attribute\Autowired;
+use Switon\Core\ClockInterface;
 use Switon\Core\PathAliasInterface;
 use Switon\HttpClient\Exception\ConnectionException;
 use Switon\HttpClient\Exception\ConnectTimeoutException;
@@ -16,9 +17,7 @@ use Switon\HttpClient\Exception\UnsupportedProxyException;
 use function explode;
 use function is_array;
 use function is_int;
-use function microtime;
 use function parse_url;
-use function round;
 use function substr;
 use function constant;
 use function defined;
@@ -62,6 +61,7 @@ use const CURLINFO_TOTAL_TIME;
 class Engine implements EngineInterface
 {
     #[Autowired] protected HttpClientInterface $owner;
+    #[Autowired] protected ClockInterface $clock;
     #[Autowired] protected PathAliasInterface $pathAlias;
     #[Autowired] protected CurlInterface $curl;
 
@@ -214,7 +214,7 @@ class Engine implements EngineInterface
             }
             $this->curl->setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
-            $start_time = microtime(true);
+            $start_time = $this->clock->microtime();
 
             $content = $this->curl->exec($curl);
 
@@ -265,7 +265,7 @@ class Engine implements EngineInterface
             $header_length = $this->curl->getinfo($curl, CURLINFO_HEADER_SIZE);
             $request->markCompleted(
                 (string)$this->curl->getinfo($curl, CURLINFO_PRIMARY_IP),
-                round(microtime(true) - $start_time, 3)
+                $this->clock->elapsed($start_time)
             );
 
             $success = true;

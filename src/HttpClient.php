@@ -6,6 +6,7 @@ namespace Switon\HttpClient;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Switon\Core\Attribute\Autowired;
+use Switon\Core\ClockInterface;
 use Switon\Core\Exception\NonCloneableException;
 use Switon\Core\Json;
 use Switon\HttpClient\Event\HttpClientComplete;
@@ -36,9 +37,7 @@ use function http_build_query;
 use function is_array;
 use function is_int;
 use function is_string;
-use function microtime;
 use function random_bytes;
-use function round;
 use function str_contains;
 use function str_ends_with;
 use function strlen;
@@ -79,6 +78,7 @@ use function trim;
 class HttpClient implements HttpClientInterface
 {
     #[Autowired] protected EventDispatcherInterface $eventDispatcher;
+    #[Autowired] protected ClockInterface $clock;
     /** @var PoolManagerInterface<HttpClient, EngineInterface> */
     #[Autowired] protected PoolManagerInterface $poolManager;
 
@@ -144,7 +144,7 @@ class HttpClient implements HttpClientInterface
 
         $response = null;
         $elapsed = 0.0;
-        $overall_start_time = microtime(true);
+        $overall_start_time = $this->clock->microtime();
 
         try {
             $response = $this->sendRequest($request, $method, $url, $overall_start_time);
@@ -152,17 +152,17 @@ class HttpClient implements HttpClientInterface
             if ($responseHandler !== null) {
                 $response = $responseHandler($response);
             }
-            $elapsed = $this->getElapsed($overall_start_time);
+            $elapsed = $this->clock->elapsed($overall_start_time);
             $this->eventDispatcher->dispatch(new HttpClientSuccess($this, $method, $url, $request, $response, $elapsed));
 
             return $response;
         } catch (Throwable $exception) {
-            $elapsed = $this->getElapsed($overall_start_time);
+            $elapsed = $this->clock->elapsed($overall_start_time);
             $this->eventDispatcher->dispatch(new HttpClientError($this, $method, $url, $request, $response, $exception, $elapsed));
 
             throw $exception;
         } finally {
-            $elapsed = $elapsed > 0 ? $elapsed : $this->getElapsed($overall_start_time);
+            $elapsed = $elapsed > 0 ? $elapsed : $this->clock->elapsed($overall_start_time);
             $this->eventDispatcher->dispatch(new HttpClientComplete($this, $method, $url, $request, $response, $elapsed));
         }
     }
@@ -351,7 +351,7 @@ class HttpClient implements HttpClientInterface
         }
 
         $this->eventDispatcher->dispatch(
-            new HttpClientRequested($this, $method, $url, $request, $response, $this->getElapsed($overallStartTime))
+            new HttpClientRequested($this, $method, $url, $request, $response, $this->clock->elapsed($overallStartTime))
         );
 
         return $response;
@@ -425,11 +425,6 @@ class HttpClient implements HttpClientInterface
             $http_code >= 500 => ServerErrorException::raise('{status_code} Server Error: {url}', $context),
             default => BadResponseException::raise('{status_code} Unknown Error: {url}', $context),
         };
-    }
-
-    protected function getElapsed(float $overallStartTime): float
-    {
-        return round(microtime(true) - $overallStartTime, 3);
     }
 
     protected function bodyContainsFile(mixed $body): bool
