@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Switon\HttpClient\Event;
 
+use Switon\Core\SenderAwareInterface;
 use Switon\Eventing\Attribute\EventLevel;
 use Switon\Eventing\Severity;
 use Switon\HttpClient\HttpClientInterface;
@@ -21,13 +22,10 @@ use Switon\HttpClient\Response;
  * @see \Switon\HttpClient\Event\HttpClientError
  */
 #[EventLevel(Severity::DEBUG)]
-class HttpClientComplete
+class HttpClientComplete implements SenderAwareInterface
 {
-    /**
-     * @param string|array<int|string, mixed> $url
-     */
     public function __construct(
-        public HttpClientInterface $client,
+        public HttpClientInterface $sender,
         public string              $method,
         public string|array        $url,
         public Request             $request,
@@ -35,5 +33,10 @@ class HttpClientComplete
         public float               $elapsed,
     ) {
 
+    }
+
+    public function getSender(): HttpClientInterface
+    {
+        return $this->sender;
     }
 }
