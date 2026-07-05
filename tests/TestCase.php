@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Switon\HttpClient\Tests;
 
 use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase as BaseTestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Switon\Core\App;
+use Switon\Core\InjectorInterface;
+use Switon\Di\Container as DiContainer;
+use Switon\Di\ServiceProvider as DiServiceProvider;
+use Switon\HttpClient\EngineInterface;
 use Switon\HttpClient\HttpClientInterface;
 use Switon\HttpClient\Tests\Fixtures\StubHttpClient;
-use Switon\HttpClient\EngineInterface;
 use Switon\Pooling\PoolManagerInterface;
-use Switon\Testing\TestCase as BaseTestCase;
 
 /**
  * Event dispatcher stub for testing.
@@ -30,11 +34,11 @@ class EventDispatcherStub implements EventDispatcherInterface
 
 /**
  * Base test case for HTTP Client tests.
- *
- * Provides common functionality for all HTTP Client tests, including mocks for dependencies.
  */
 abstract class TestCase extends BaseTestCase
 {
+    protected DiContainer $container;
+    protected InjectorInterface $injector;
     protected EventDispatcherInterface|MockObject $eventDispatcher;
     protected PoolManagerInterface|MockObject $poolManager;
     protected EngineInterface|MockObject $engine;
@@ -44,19 +48,30 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        $this->container = new DiContainer();
+        $diProvider = new DiServiceProvider();
+        $diProvider->register($this->container);
+        $diProvider->boot();
+
+        App::setContainer($this->container);
+
+        $this->injector = $this->container->get(InjectorInterface::class);
+        $this->setUpContainer();
+        $this->injector->inject($this);
+
         $this->httpClientOwner = new StubHttpClient();
-
-        // Create stub event dispatcher (use createStub since most tests don't need expectations)
-        // Tests that need to verify event dispatching will replace this with a mock
         $this->eventDispatcher = $this->createStub(EventDispatcherInterface::class);
-
-        // Create stub pool manager (use createStub since most tests don't need expectations)
-        // Tests that need to verify pool manager calls will replace this with a mock
         $this->poolManager = $this->createStub(PoolManagerInterface::class);
-
-        // Create stub engine (use createStub since most tests don't need expectations)
-        // Tests that need to verify engine calls will replace this with a mock
         $this->engine = $this->createStub(EngineInterface::class);
+    }
+
+    protected function setUpContainer(): void
+    {
+    }
+
+    protected function make(string $name, array $parameters = []): mixed
+    {
+        return $this->container->make($name, $parameters);
     }
 
     protected function engineParameters(array $parameters = []): array
@@ -70,14 +85,6 @@ abstract class TestCase extends BaseTestCase
         unset($this->eventDispatcher, $this->poolManager, $this->engine);
     }
 
-    /**
-     * Creates a test event dispatcher stub that collects dispatched events.
-     *
-     * Returns an EventDispatcherInterface implementation that stores all
-     * dispatched events in a public array for testing purposes.
-     *
-     * @return EventDispatcherStub Event dispatcher stub with dispatchedEvents array
-     */
     protected function createEventDispatcherStub(): EventDispatcherStub
     {
         return new EventDispatcherStub();

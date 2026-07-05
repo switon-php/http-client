@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Switon\HttpClient\Tests\Unit;
 
 use Switon\HttpClient\RequestOptions;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class RequestOptionsTest extends TestCase
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Switon\HttpClient\Tests\Unit\Response;
 
 use Switon\HttpClient\Response\Cookie;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test cases for Cookie class.

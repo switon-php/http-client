@@ -19,6 +19,12 @@ declare(strict_types=1);
 
 // Get request method
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+$readyFile = getenv('SWITON_HTTP_TEST_READY');
+if (is_string($readyFile) && $readyFile !== '' && !is_file($readyFile)) {
+    @file_put_contents($readyFile, (string) (getmypid() ?: 0));
+}
+
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $parsed = parse_url($uri);
 $path = $parsed['path'] ?? '/';

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Switon\HttpClient\Tests\Unit;
 
 use Switon\HttpClient\MemoryFile;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test cases for MemoryFile class.

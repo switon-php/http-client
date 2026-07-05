@@ -6,7 +6,7 @@ namespace Switon\HttpClient\Tests\Unit;
 
 use Switon\HttpClient\MemoryFile;
 use Switon\HttpClient\Request;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test cases for Request class.

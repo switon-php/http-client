@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Switon\HttpClient\Tests\Unit;
 
 use Switon\Core\FilesystemInterface;
-use Switon\Core\PathAliasInterface;
 use Switon\HttpClient\Exception\FileException;
 use Switon\HttpClient\LocalFile;
 use Switon\HttpClient\Tests\TestCase;
@@ -48,10 +47,8 @@ class LocalFileTest extends TestCase
     }
 
     /**
-     * Create LocalFile with injected PathAlias.
-     *
      * Container's make() method injects #[Autowired] properties before calling constructor,
-     * so LocalFile can use pathAlias in its constructor.
+     * so LocalFile can resolve the path in its constructor.
      */
     protected function createLocalFile(string $fileName, ?string $mimeType = null, ?string $postName = null): LocalFile
     {
@@ -196,6 +193,7 @@ class LocalFileTest extends TestCase
     public function testGetContentThrowsExceptionWhenReadFails(): void
     {
         $filesystem = $this->createStub(FilesystemInterface::class);
+        $filesystem->method('resolve')->willReturnCallback(static fn (string $path): string => $path);
         $filesystem->method('exists')->willReturn(true);
         $filesystem->method('read')->willReturnCallback(static function () {
             static $callCount = 0;
@@ -207,11 +205,7 @@ class LocalFileTest extends TestCase
             throw new RuntimeException('read failed');
         });
 
-        $pathAlias = $this->createStub(PathAliasInterface::class);
-        $pathAlias->method('resolve')->willReturnCallback(static fn (string $path): string => $path);
-
         $this->container->replace(FilesystemInterface::class, $filesystem);
-        $this->container->replace(PathAliasInterface::class, $pathAlias);
 
         $file = $this->make(LocalFile::class, ['fileName' => $this->testFile, 'mimeType' => 'text/plain', 'postName' => 'test.txt']);
 

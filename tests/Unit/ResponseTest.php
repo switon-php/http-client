@@ -8,7 +8,7 @@ use Switon\Core\Exception\JsonException;
 use Switon\HttpClient\Exception\CharsetConversionException;
 use Switon\HttpClient\Request;
 use Switon\HttpClient\Response;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 /**
  * Test cases for Response class.

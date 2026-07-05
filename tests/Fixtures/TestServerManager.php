@@ -6,28 +6,30 @@ namespace Switon\HttpClient\Tests\Fixtures;
 
 use RuntimeException;
 
-use function curl_exec;
-use function curl_init;
-use function curl_setopt;
 use function exec;
+use function file_put_contents;
+use function fsockopen;
+use function hrtime;
+use function is_file;
 use function is_resource;
 use function proc_close;
+use function proc_get_status;
 use function proc_open;
 use function proc_terminate;
 use function socket_bind;
 use function socket_close;
 use function socket_create;
 use function sprintf;
+use function unlink;
 use function usleep;
 
 /**
  * Test server manager for HTTP Client integration tests.
  *
  * Manages the lifecycle of a local test HTTP server:
- * - Starts server with random IP (127.0.0.1-127.0.0.255) and random port (10000-65535)
- * - Detects server readiness
- * - Provides server URL
- * - Stops server process
+ * - Starts PHP built-in server on 127.0.0.1 and a random high port
+ * - Marks readiness via a temp file once TCP accepts (no curl health polling)
+ * - Provides server URL and stops the server process on teardown
  */
 class TestServerManager
 {
@@ -37,6 +39,7 @@ class TestServerManager
     protected string $serverUrl = '';
     protected string $serverScript = '';
     protected string $serverDir = '';
+    protected string $readyFile = '';
     protected bool $shutdownRegistered = false;
     protected array $originalProxyEnv = [];
 
@@ -56,7 +59,7 @@ class TestServerManager
     public function start(): void
     {
         if ($this->isRunning()) {
-            return; // Already running
+            return;
         }
         if (!$this->shutdownRegistered) {
             $this->shutdownRegistered = true;
@@ -65,11 +68,8 @@ class TestServerManager
             });
         }
 
-        // Disable proxy environment variables for test server
-        // Save original values to restore later if needed
         $this->disableProxyEnvironment();
 
-        // Use fixed IP but random available port to avoid conflicts
         $ip = $this->generateRandomIp();
         $port = null;
         $maxAttempts = 20;
@@ -87,12 +87,13 @@ class TestServerManager
         $this->ip = $ip;
         $this->port = $port;
         $this->serverUrl = sprintf('http://%s:%d', $ip, $port);
+        $this->readyFile = $this->readyFilePath($port);
+        $this->removeReadyFile();
 
         if (!$this->startServer($ip, $port)) {
             throw new RuntimeException('Failed to start PHP built-in server process.');
         }
 
-        // Wait for server to be ready
         if (!$this->waitForServer()) {
             $this->stop();
             throw new RuntimeException('Server process started but did not respond within timeout period.');
@@ -105,27 +106,23 @@ class TestServerManager
     public function stop(): void
     {
         if ($this->process !== null && is_resource($this->process)) {
-            // Get process PID from proc_get_status
             $status = proc_get_status($this->process);
             if ($status !== false && isset($status['pid']) && $status['pid'] > 0) {
-                // Terminate the process
-                proc_terminate($this->process, 15); // SIGTERM
-                // Wait a bit for graceful shutdown
-                usleep(100000); // 0.1 second
-                // Force kill if still running
+                proc_terminate($this->process, 15);
+                usleep(50000);
                 if ($this->isProcessRunning($status['pid'])) {
-                    proc_terminate($this->process, 9); // SIGKILL
+                    proc_terminate($this->process, 9);
                 }
             }
             proc_close($this->process);
             $this->process = null;
         }
 
-        // Also try to kill any remaining processes on this port
         if ($this->port !== null) {
             $this->killProcessOnPort($this->ip ?? '127.0.0.1', $this->port);
         }
 
+        $this->removeReadyFile();
         $this->ip = null;
         $this->port = null;
         $this->serverUrl = '';
@@ -134,20 +131,19 @@ class TestServerManager
     /**
      * Get the server URL.
      *
-     * @return string Server URL (e.g., "http://127.0.0.123:18000")
+     * @return string Server URL (e.g., "http://127.0.0.1:18000")
      */
     public function getUrl(): string
     {
         if ($this->serverUrl === '') {
             throw new RuntimeException('Server is not started. Call start() first.');
         }
+
         return $this->serverUrl;
     }
 
     /**
      * Check if server is running.
-     *
-     * @return bool True if server is running
      */
     public function isRunning(): bool
     {
@@ -155,7 +151,6 @@ class TestServerManager
             return false;
         }
 
-        // Check if process is still running
         if ($this->process !== null) {
             $status = proc_get_status($this->process);
             if ($status !== false && !$status['running']) {
@@ -163,43 +158,40 @@ class TestServerManager
             }
         }
 
-        // Try to connect to the server
-        return $this->checkServerReady($this->serverUrl);
+        return $this->readyFile !== '' && is_file($this->readyFile);
     }
 
-    /**
-     * Generate IP address for test server.
-     *
-     * Fixed to 127.0.0.1 for simplicity and compatibility.
-     * Most systems only support 127.0.0.1 for local testing.
-     *
-     * @return string IP address (always 127.0.0.1)
-     */
+    protected function readyFilePath(int $port): string
+    {
+        return sys_get_temp_dir() . '/switon-http-client-test-' . $port . '.ready';
+    }
+
+    protected function markReady(): void
+    {
+        if ($this->readyFile === '') {
+            return;
+        }
+
+        file_put_contents($this->readyFile, (string) ($this->port ?? 0));
+    }
+
+    protected function removeReadyFile(): void
+    {
+        if ($this->readyFile !== '' && is_file($this->readyFile)) {
+            @unlink($this->readyFile);
+        }
+    }
+
     protected function generateRandomIp(): string
     {
         return '127.0.0.1';
     }
 
-    /**
-     * Generate a port for test server.
-     *
-     * Random port in the dynamic/private range to minimize conflicts.
-     *
-     * @return int Port number (always 51234)
-     */
     protected function generateRandomPort(): int
     {
         return random_int(49152, 65535);
     }
 
-    /**
-     * Try to bind to the given IP and port to check if it's available.
-     *
-     * @param string $ip IP address
-     * @param int $port Port number
-     *
-     * @return bool True if binding is successful (port is available)
-     */
     protected function tryBind(string $ip, int $port): bool
     {
         $socket = @socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -207,7 +199,6 @@ class TestServerManager
             return false;
         }
 
-        // Set socket option to allow reuse
         socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
 
         $result = @socket_bind($socket, $ip, $port);
@@ -216,14 +207,6 @@ class TestServerManager
         return $result !== false;
     }
 
-    /**
-     * Start the PHP built-in server.
-     *
-     * @param string $ip IP address
-     * @param int $port Port number
-     *
-     * @return bool True if server process started successfully
-     */
     protected function startServer(string $ip, int $port): bool
     {
         $command = sprintf(
@@ -232,16 +215,22 @@ class TestServerManager
             $ip,
             $port,
             escapeshellarg($this->serverDir),
-            escapeshellarg($this->serverScript)
+            escapeshellarg($this->serverScript),
         );
 
         $descriptorspec = [
-            0 => ['pipe', 'r'], // stdin
-            1 => ['pipe', 'w'], // stdout
-            2 => ['pipe', 'w'], // stderr
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
         ];
 
-        $process = @proc_open($command, $descriptorspec, $pipes, null, null, [
+        $env = getenv();
+        if (!is_array($env)) {
+            $env = [];
+        }
+        $env['SWITON_HTTP_TEST_READY'] = $this->readyFile;
+
+        $process = @proc_open($command, $descriptorspec, $pipes, $this->serverDir, $env, [
             'suppress_errors' => true,
         ]);
 
@@ -249,143 +238,95 @@ class TestServerManager
             return false;
         }
 
-        // Store process resource
         $this->process = $process;
 
-        // Close pipes (we don't need them)
-        if (isset($pipes[0])) {
-            fclose($pipes[0]);
-        }
-        if (isset($pipes[1])) {
-            fclose($pipes[1]);
-        }
-        if (isset($pipes[2])) {
-            fclose($pipes[2]);
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                fclose($pipe);
+            }
         }
 
         return true;
     }
 
     /**
-     * Wait for server to be ready.
-     *
-     * Polls the server until it responds or timeout is reached.
-     *
-     * @param int $maxWaitMs Maximum wait time in milliseconds (default: 1000ms)
-     *
-     * @return bool True if server is ready
+     * Wait until the ready file exists or TCP accepts connections.
      */
-    protected function waitForServer(int $maxWaitMs = 1000): bool
+    protected function waitForServer(int $maxWaitMs = 500): bool
     {
-        $pollInterval = 15000; // 15ms in microseconds
-        $maxAttempts = max(1, (int)($maxWaitMs / 15));
+        $deadline = hrtime(true) + $maxWaitMs * 1_000_000;
 
-        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
-            if ($this->checkServerReady($this->serverUrl)) {
+        while (hrtime(true) < $deadline) {
+            if ($this->readyFile !== '' && is_file($this->readyFile)) {
                 return true;
             }
-            usleep($pollInterval);
+
+            if ($this->isTcpReady()) {
+                $this->markReady();
+
+                return true;
+            }
+
+            usleep(2000);
         }
 
         return false;
     }
 
-    /**
-     * Check if server is ready by sending a test request.
-     *
-     * @param string $url Server URL
-     *
-     * @return bool True if server responds
-     */
-    protected function checkServerReady(string $url): bool
+    protected function isTcpReady(): bool
     {
-        // First check if TCP port is open
-        $parts = parse_url($url);
-        if ($parts === false || !isset($parts['host'], $parts['port'])) {
+        if ($this->ip === null || $this->port === null) {
             return false;
         }
+
         $errno = 0;
         $errstr = '';
-        $fp = @fsockopen($parts['host'], (int)$parts['port'], $errno, $errstr, 0.1);
+        $fp = @fsockopen($this->ip, $this->port, $errno, $errstr, 0.05);
         if ($fp === false) {
             return false;
         }
+
         fclose($fp);
 
-        // Then try a real HTTP request to ensure server is actually processing requests
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url . '/get');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT_MS, 200); // 200ms timeout for health check
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 100);
-        curl_setopt($ch, CURLOPT_NOBODY, true); // HEAD request
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'HEAD');
-        curl_setopt($ch, CURLOPT_FAILONERROR, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        // IMPORTANT: Disable proxy completely for local test server
-        curl_setopt($ch, CURLOPT_PROXY, ''); // Empty string disables proxy
-        curl_setopt($ch, CURLOPT_NOPROXY, '*'); // Bypass proxy for all hosts
-
-        $result = @curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        // Server is ready if we get any HTTP response (even 404 is OK, means server is running)
-        return $result !== false || $httpCode > 0;
+        return true;
     }
 
-    /**
-     * Check if a process is still running.
-     *
-     * @param int $pid Process ID
-     *
-     * @return bool True if process is running
-     */
     protected function isProcessRunning(int $pid): bool
     {
         if (PHP_OS_FAMILY === 'Windows') {
-            // Windows: use tasklist
             exec("tasklist /FI \"PID eq $pid\" 2>NUL", $output, $returnCode);
-            return $returnCode === 0 && !empty($output);
-        } else {
-            // Unix-like: use ps
-            exec("ps -p $pid > /dev/null 2>&1", $output, $returnCode);
-            return $returnCode === 0;
+
+            return $returnCode === 0 && $output !== [];
         }
+
+        exec("ps -p $pid > /dev/null 2>&1", $output, $returnCode);
+
+        return $returnCode === 0;
     }
 
-    /**
-     * Kill any process listening on the given IP and port.
-     *
-     * @param string $ip IP address
-     * @param int $port Port number
-     */
     protected function killProcessOnPort(string $ip, int $port): void
     {
         if (PHP_OS_FAMILY === 'Windows') {
-            // Windows: use netstat and taskkill
             @exec("netstat -ano | findstr :$port 2>NUL", $output);
             foreach ($output as $line) {
-                if (str_contains($line, (string)$port)) {
+                if (str_contains($line, (string) $port)) {
                     $parts = preg_split('/\s+/', trim($line));
-                    if (!empty($parts) && is_numeric($parts[count($parts) - 1])) {
-                        $pid = (int)$parts[count($parts) - 1];
+                    if ($parts !== false && $parts !== [] && is_numeric($parts[count($parts) - 1])) {
+                        $pid = (int) $parts[count($parts) - 1];
                         @exec("taskkill /F /PID $pid 2>NUL");
                     }
                 }
             }
-        } else {
-            // Unix-like: use lsof or fuser
-            @exec("lsof -ti $ip:$port 2>/dev/null | xargs kill -9 2>/dev/null", $output, $returnCode);
-            // Fallback to fuser if lsof is not available
-            if ($returnCode !== 0) {
-                @exec("fuser -k $port/tcp 2>/dev/null", $output, $returnCode);
-            }
+
+            return;
+        }
+
+        @exec("lsof -ti $ip:$port 2>/dev/null | xargs kill -9 2>/dev/null", $output, $returnCode);
+        if ($returnCode !== 0) {
+            @exec("fuser -k $port/tcp 2>/dev/null");
         }
     }
 
-    /**
-     * Disable proxy environment variables for test execution.
-     */
     protected function disableProxyEnvironment(): void
     {
         $proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'];
@@ -398,19 +339,16 @@ class TestServerManager
                 if (!isset($this->originalProxyEnv[$var])) {
                     $this->originalProxyEnv[$var] = getenv($var);
                 }
-                putenv($var); // Unset the environment variable
+                putenv($var);
             }
         }
-        // Set NO_PROXY to bypass proxy for all hosts
+
         $_ENV['NO_PROXY'] = '*';
         $_ENV['no_proxy'] = '*';
         putenv('NO_PROXY=*');
         putenv('no_proxy=*');
     }
 
-    /**
-     * Cleanup on destruction.
-     */
     public function __destruct()
     {
         $this->stop();

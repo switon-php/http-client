@@ -24,9 +24,6 @@ use RuntimeException;
  * Or skip with: phpunit --exclude-group integration
  *
  * Only essential tests are kept here. Detailed functionality is tested in unit tests with MockEngine.
- *
- * @group integration
- * @group slow
  */
 class EngineTest extends TestCase
 {

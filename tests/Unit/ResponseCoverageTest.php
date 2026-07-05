@@ -7,7 +7,7 @@ namespace Switon\HttpClient\Tests\Unit;
 use Switon\Core\Exception\RuntimeException;
 use Switon\HttpClient\Request;
 use Switon\HttpClient\Response;
-use Switon\HttpClient\Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class ResponseCoverageTest extends TestCase
 {
