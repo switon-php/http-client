@@ -9,6 +9,8 @@ namespace Switon\HttpClient;
  *
  * Use this behind `HttpClientInterface`; application code should not depend on transport engines directly.
  *
+ * @extends \Switon\Core\OwnerAwareInterface<HttpClientInterface>
+ *
  * @see \Switon\HttpClient\Engine
  * @see \Switon\HttpClient\Request
  * @see \Switon\HttpClient\Response

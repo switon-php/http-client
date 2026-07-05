@@ -25,6 +25,9 @@ use Throwable;
 #[EventLevel(Severity::WARNING)]
 class HttpClientError implements SenderAwareInterface
 {
+    /**
+     * @param string|array<int|string, mixed> $url Request URL, or URL plus options
+     */
     public function __construct(
         public HttpClientInterface $sender,
         public string              $method,

@@ -22,6 +22,9 @@ use Switon\HttpClient\Request;
 #[EventLevel(Severity::DEBUG)]
 class HttpClientStart implements SenderAwareInterface
 {
+    /**
+     * @param string|array<int|string, mixed> $url Request URL, or URL plus options
+     */
     public function __construct(
         public HttpClientInterface $sender,
         public string              $method,

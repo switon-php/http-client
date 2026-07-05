@@ -25,6 +25,9 @@ use Switon\HttpClient\Response;
 #[EventLevel(Severity::DEBUG)]
 class HttpClientRequested implements JsonSerializable, SenderAwareInterface
 {
+    /**
+     * @param string|array<int|string, mixed> $url Request URL, or URL plus options
+     */
     public function __construct(
         public HttpClientInterface $sender,
         public string              $method,

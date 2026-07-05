@@ -84,19 +84,14 @@ class HttpClient implements HttpClientInterface
 
     /** Default proxy URL (http/sock4/socks4/sock5/socks5) when request options do not override it. */
     #[Autowired] protected ?string $proxy;
-
     /** CA certificate file path used for TLS peer verification. */
     #[Autowired] protected ?string $cafile;
-
     /** Default total request timeout in seconds. */
     #[Autowired] protected int $timeout = 3;
-
     /** Default connection-establishment timeout in seconds. */
     #[Autowired] protected int $connect_timeout = 1;
-
     /** Whether TLS peer and host verification is enabled by default. */
     #[Autowired] protected bool $verify_peer = true;
-
     /** Engine pool size per host identifier. */
     #[Autowired] protected int $pool_size = 4;
 
