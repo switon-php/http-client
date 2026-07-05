@@ -19,6 +19,7 @@ use function is_int;
  * - <code>proxy</code>: proxy URL for this request
  * - <code>cafile</code>: CA file path for TLS verification
  * - <code>verify_peer</code>: whether TLS peer verification stays enabled
+ * - <code>should_abort</code>: polled during transfer; `true` aborts the wire read
  *
  * @see \Switon\HttpClient\HttpClient
  * @see \Switon\HttpClient\HttpClientInterface
@@ -31,6 +32,7 @@ class RequestOptions
     public const string PROXY = 'proxy';
     public const string CAFILE = 'cafile';
     public const string VERIFY_PEER = 'verify_peer';
+    public const string SHOULD_ABORT = 'should_abort';
 
     /** @var array<string, mixed> */
     protected array $options;

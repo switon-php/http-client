@@ -7,6 +7,7 @@ namespace Switon\HttpClient;
 use Switon\Core\Attribute\Autowired;
 use Switon\Core\ClockInterface;
 use Switon\Core\PathAliasInterface;
+use Switon\HttpClient\Exception\AbortedException;
 use Switon\HttpClient\Exception\ConnectionException;
 use Switon\HttpClient\Exception\ConnectTimeoutException;
 use Switon\HttpClient\Exception\DnsException;
@@ -214,6 +215,24 @@ class Engine implements EngineInterface
             }
             $this->curl->setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
+            $shouldAbort = $request->getOption(RequestOptions::SHOULD_ABORT);
+            if (is_callable($shouldAbort)) {
+                $this->curl->setopt($curl, CURLOPT_NOPROGRESS, false);
+                $this->curl->setopt(
+                    $curl,
+                    CURLOPT_PROGRESSFUNCTION,
+                    static function (
+                        $resource,
+                        float $downloadSize,
+                        float $downloaded,
+                        float $uploadSize,
+                        float $uploaded,
+                    ) use ($shouldAbort): int {
+                        return $shouldAbort() ? 1 : 0;
+                    },
+                );
+            }
+
             $start_time = $this->clock->microtime();
 
             $content = $this->curl->exec($curl);
@@ -226,6 +245,19 @@ class Engine implements EngineInterface
             }
 
             if ($errno) {
+                $context = [
+                    'url' => $request->getUrl(),
+                    'error' => $this->curl->error($curl),
+                    'errno' => $errno,
+                    'request' => $request,
+                ];
+
+                // CURLE_ABORTED (42) is not defined on all libcurl/PHP builds.
+                $aborted = defined('CURLE_ABORTED') ? (int) constant('CURLE_ABORTED') : 42;
+                if ($errno === $aborted || $errno === 42) {
+                    AbortedException::raise('Request aborted: {url}', $context);
+                }
+
                 // Split connect timeout from overall request timeout.
                 // CURLE_OPERATION_TIMEDOUT = 28
                 if ($errno === CURLE_OPERATION_TIMEDOUT || $errno === 28) {
@@ -236,13 +268,6 @@ class Engine implements EngineInterface
                     }
                     TimeoutException::raise('Request timeout ({timeout}s): {url}', ['url' => $request->getUrl(), 'timeout' => $timeout, 'request' => $request]);
                 }
-
-                $context = [
-                    'url' => $request->getUrl(),
-                    'error' => $this->curl->error($curl),
-                    'errno' => $errno,
-                    'request' => $request,
-                ];
 
                 // DNS errors
                 if (in_array($errno, [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_RESOLVE_PROXY], true)) {

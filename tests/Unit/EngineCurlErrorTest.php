@@ -6,11 +6,13 @@ namespace Switon\HttpClient\Tests\Unit;
 
 use Switon\Core\PathAliasInterface;
 use Switon\HttpClient\Engine;
+use Switon\HttpClient\Exception\AbortedException;
 use Switon\HttpClient\Exception\ConnectionException;
 use Switon\HttpClient\Exception\ConnectTimeoutException;
 use Switon\HttpClient\Exception\DnsException;
 use Switon\HttpClient\Exception\SslException;
 use Switon\HttpClient\Exception\TimeoutException;
+use Switon\HttpClient\RequestOptions;
 use Switon\HttpClient\Request;
 use Switon\HttpClient\Tests\Fixtures\FakeCurl;
 use Switon\HttpClient\Tests\TestCase;
@@ -308,5 +310,51 @@ class EngineCurlErrorTest extends TestCase
 
         $this->assertSame('payload', $response->body);
         $this->assertNotEmpty($response->headers);
+    }
+
+    public function testShouldAbortCallbackRaisesAbortedException(): void
+    {
+        $curl = new FakeCurl();
+        $curl->errno = defined('CURLE_ABORTED') ? (int) constant('CURLE_ABORTED') : 42;
+        $curl->error = 'aborted';
+
+        $request = new Request('GET', 'https://example.com', null, [], [
+            'timeout' => 1,
+            'verify_peer' => false,
+            RequestOptions::SHOULD_ABORT => static fn (): bool => true,
+        ]);
+
+        $engine = $this->makeEngineWithFakeCurl($curl);
+
+        $this->expectException(AbortedException::class);
+        $engine->request($request, null);
+        $this->assertFalse($curl->options[CURLOPT_NOPROGRESS] ?? true);
+    }
+
+    public function testSslExceptionForPeerVerificationFailureWhenConstantDefined(): void
+    {
+        if (!defined('CURLE_PEER_FAILED_VERIFICATION')) {
+            $this->markTestSkipped('CURLE_PEER_FAILED_VERIFICATION is not defined');
+        }
+
+        $curl = new FakeCurl();
+        $curl->errno = (int) constant('CURLE_PEER_FAILED_VERIFICATION');
+        $engine = $this->makeEngineWithFakeCurl($curl);
+
+        $this->expectException(SslException::class);
+        $engine->request($this->makeRequest(), null);
+    }
+
+    public function testExecReturningFalseYieldsEmptyResponseBody(): void
+    {
+        $curl = new FakeCurl();
+        $curl->execResult = false;
+        $curl->info[CURLINFO_HEADER_SIZE] = 0;
+        $curl->info[CURLINFO_PRIMARY_IP] = '127.0.0.1';
+
+        $engine = $this->makeEngineWithFakeCurl($curl);
+        $response = $engine->request($this->makeRequest(), null);
+
+        $this->assertSame('', $response->body);
     }
 }
