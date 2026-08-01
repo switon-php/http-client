@@ -40,7 +40,7 @@ class UserService
 }
 ```
 
-Docs: https://docs.switon.dev/latest/http-client
+Docs: https://github.com/switon-php/http-client/blob/main/docs/README.md
 
 ## License
 

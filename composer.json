@@ -19,7 +19,7 @@
     "support": {
         "source": "https://github.com/switon-php/http-client",
         "issues": "https://github.com/switon-php/http-client/issues",
-        "docs": "https://docs.switon.dev/latest/http-client"
+        "docs": "https://github.com/switon-php/http-client/blob/main/docs/README.md"
     },
     "require": {
         "php": ">=8.3",
