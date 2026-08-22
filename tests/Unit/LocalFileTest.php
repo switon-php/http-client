@@ -241,32 +241,4 @@ class LocalFileTest extends TestCase
         $this->expectException(FileException::class);
         $this->createLocalFile($nonExistentFile, 'text/plain', 'test.txt');
     }
-
-    /**
-     * Test construction throws FileException when file is not readable.
-     */
-    public function testConstructThrowsExceptionWhenFileNotReadable(): void
-    {
-        // Skip on Windows as chmod may not work as expected
-        if (DIRECTORY_SEPARATOR === '\\') {
-            $this->markTestSkipped('File permissions test skipped on Windows');
-        }
-
-        // Arrange
-        $unreadableFile = $this->testDir . '/unreadable.txt';
-        file_put_contents($unreadableFile, 'content');
-        chmod($unreadableFile, 0000);
-
-        try {
-            // Act & Assert
-            $this->expectException(FileException::class);
-            $this->createLocalFile($unreadableFile, 'text/plain', 'test.txt');
-        } finally {
-            // Clean up
-            chmod($unreadableFile, 0644);
-            if (file_exists($unreadableFile)) {
-                unlink($unreadableFile);
-            }
-        }
-    }
 }

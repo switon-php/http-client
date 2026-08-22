@@ -10,6 +10,7 @@ use Switon\Command\Attribute\Hidden;
 use Switon\Core\Attribute\Autowired;
 use Switon\Core\ConsoleInterface;
 use Switon\Core\InputInterface;
+use Switon\Core\Program;
 use Switon\HttpClient\HttpClientInterface;
 use Throwable;
 
@@ -250,9 +251,9 @@ class DateCommand
             $dt = (new DateTime())->setTimestamp($timestamp)
                 ->setTimezone(new DateTimeZone('UTC'))
                 ->format('mdHiy');
-            $this->runSystemCommand('date -u ' . $dt);
+            Program::passthru(['date', '-u', $dt]);
         } else {
-            $this->runSystemCommand('date --set "' . date('Y-m-d H:i:s', $timestamp) . '"');
+            Program::passthru(['date', '--set', date('Y-m-d H:i:s', $timestamp)]);
         }
     }
 
