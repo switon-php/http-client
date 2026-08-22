@@ -9,6 +9,7 @@ use Switon\Core\Attribute\Autowired;
 use Switon\Core\ClockInterface;
 use Switon\Core\Exception\NonCloneableException;
 use Switon\Core\Json;
+use Switon\Core\WebFetcherInterface;
 use Switon\HttpClient\Event\HttpClientComplete;
 use Switon\HttpClient\Event\HttpClientError;
 use Switon\HttpClient\Event\HttpClientRequested;
@@ -34,6 +35,7 @@ use Throwable;
 use function bin2hex;
 use function explode;
 use function http_build_query;
+use function implode;
 use function is_array;
 use function is_int;
 use function is_string;
@@ -61,7 +63,7 @@ use function trim;
  * - TLS options: <code>verify_peer</code>, <code>cafile</code>
  * - network options: <code>proxy</code>, <code>pool_size</code>
  *
- * Guidance: Shortcut methods enforce JSON response expectations except for <code>head()</code> and raw <code>request()</code>.
+ * Guidance: Shortcut methods enforce JSON response expectations except for <code>head()</code>, raw <code>request()</code>, and <code>fetch()</code>. <code>fetch()</code> returns the status instead of throwing it.
  *
  * @see \Switon\HttpClient\HttpClientInterface
  * @see \Switon\HttpClient\Request
@@ -119,6 +121,40 @@ class HttpClient implements HttpClientInterface
     }
 
     /**
+     * {@see WebFetcherInterface}: one raw response, including a non-2xx status.
+     *
+     * `timeout` and `should_abort` apply. `origin` and `ready` are browser options and are ignored.
+     *
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $options
+     *
+     * @return array{status: int, headers: array<string, string>, body: string}
+     */
+    public function fetch(
+        string $url,
+        string $method = 'GET',
+        array $headers = [],
+        ?string $body = null,
+        array $options = [],
+    ): array {
+        $requestOptions = [];
+        if (isset($options[WebFetcherInterface::TIMEOUT])) {
+            $requestOptions[RequestOptions::TIMEOUT] = $options[WebFetcherInterface::TIMEOUT];
+        }
+        if (isset($options[WebFetcherInterface::SHOULD_ABORT])) {
+            $requestOptions[RequestOptions::SHOULD_ABORT] = $options[WebFetcherInterface::SHOULD_ABORT];
+        }
+
+        $response = $this->performRequest($method, $url, $body, $headers, RequestOptions::of($requestOptions), null, true);
+
+        return [
+            'status' => $response->status(),
+            'headers' => $this->responseHeaders($response),
+            'body' => $response->getBody(),
+        ];
+    }
+
+    /**
      * Build and send one normalized request.
      *
      * @param string $method
@@ -132,7 +168,8 @@ class HttpClient implements HttpClientInterface
         null|string|array $body,
         array             $headers,
         ?RequestOptions   $options,
-        ?callable         $responseHandler = null
+        ?callable         $responseHandler = null,
+        bool              $acceptAnyStatus = false,
     ): Response {
         $request = $this->createRequest($method, $url, $body, $headers, $options);
         $this->eventDispatcher->dispatch(new HttpClientStart($this, $method, $url, $request));
@@ -143,7 +180,9 @@ class HttpClient implements HttpClientInterface
 
         try {
             $response = $this->sendRequest($request, $method, $url, $overall_start_time);
-            $this->assertSuccessfulResponse($response);
+            if (!$acceptAnyStatus) {
+                $this->assertSuccessfulResponse($response);
+            }
             if ($responseHandler !== null) {
                 $response = $responseHandler($response);
             }
@@ -385,6 +424,35 @@ class HttpClient implements HttpClientInterface
         $pos = strpos($url, '/', 8);
 
         return $pos !== false ? substr($url, 0, $pos) : $url;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function responseHeaders(Response $response): array
+    {
+        $headers = [];
+        foreach ($response->getHeaders() as $name => $value) {
+            if (!is_string($name) || $name === '') {
+                continue;
+            }
+            if (is_string($value)) {
+                $headers[$name] = $value;
+                continue;
+            }
+            if (!is_array($value)) {
+                continue;
+            }
+            $parts = [];
+            foreach ($value as $part) {
+                if (is_string($part)) {
+                    $parts[] = $part;
+                }
+            }
+            $headers[$name] = implode(', ', $parts);
+        }
+
+        return $headers;
     }
 
     protected function assertSuccessfulResponse(Response $response): void

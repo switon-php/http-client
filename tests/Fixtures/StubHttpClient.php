@@ -51,4 +51,9 @@ class StubHttpClient implements HttpClientInterface
     {
         throw new LogicException('StubHttpClient is not callable in tests.');
     }
+
+    public function fetch(string $url, string $method = 'GET', array $headers = [], ?string $body = null, array $options = []): array
+    {
+        throw new LogicException('StubHttpClient is not callable in tests.');
+    }
 }

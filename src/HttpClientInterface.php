@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Switon\HttpClient;
 
+use Switon\Core\WebFetcherInterface;
+
 /**
  * Contract for outgoing HTTP calls in app and framework services.
  *
@@ -12,6 +14,7 @@ namespace Switon\HttpClient;
  * - `RequestOptions` overrides for timeout, proxy, and TLS behavior
  * - `Response` helpers such as `json()`, `text()`, `status()`, and `header()`
  * - typed exceptions for transport, HTTP status, and response parsing failures
+ * - {@see WebFetcherInterface::fetch()} for one raw response, including a non-2xx status
  *
  * Guidance: Prefer shortcut methods for JSON APIs and pass request-specific transport overrides through
  * `RequestOptions`; use `request()` only when you need a raw method call without JSON response enforcement.
@@ -34,7 +37,7 @@ namespace Switon\HttpClient;
  * @see \Switon\HttpClient\Exception\HttpStatusException
  * @see \Switon\HttpClient\Exception\ResponseException
  */
-interface HttpClientInterface
+interface HttpClientInterface extends WebFetcherInterface
 {
     public const string HEADER_USER_AGENT = 'User-Agent';
     public const string HEADER_CONTENT_TYPE = 'Content-Type';

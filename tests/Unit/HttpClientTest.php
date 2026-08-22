@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Switon\HttpClient\Tests\Unit;
 
+use Switon\Core\WebFetcherInterface;
 use Switon\HttpClient\Event\HttpClientComplete;
 use Switon\HttpClient\Event\HttpClientError;
 use Switon\HttpClient\Event\HttpClientRequested;
@@ -1060,6 +1061,39 @@ class HttpClientTest extends TestCase
     /**
      * Helper method to create a Response object.
      */
+    public function testFetchReturnsStatusHeadersAndBody(): void
+    {
+        $this->mockEngine->setResponse($this->createResponse(
+            ['HTTP/1.1 404 Not Found', 'Content-Type: text/plain', 'X-Trace: one', 'X-Trace: two'],
+            'missing',
+        ));
+        $abort = static fn (): bool => false;
+
+        $result = $this->client->fetch('https://example.com/api', 'POST', ['Accept' => 'text/plain'], 'payload', [
+            WebFetcherInterface::TIMEOUT => 5,
+            WebFetcherInterface::SHOULD_ABORT => $abort,
+            WebFetcherInterface::ORIGIN => 'https://example.com/',
+            WebFetcherInterface::READY => 'h1',
+        ]);
+
+        $this->assertSame([
+            'status' => 404,
+            'headers' => [
+                'Content-Type' => 'text/plain',
+                'X-Trace' => 'one, two',
+            ],
+            'body' => 'missing',
+        ], $result);
+
+        $request = $this->mockEngine->requests[0]['request'];
+        $this->assertSame('POST', $request->method);
+        $this->assertSame('payload', $this->mockEngine->requests[0]['body']);
+        $this->assertSame(5, $request->getOption('timeout'));
+        $this->assertSame($abort, $request->getOption('should_abort'));
+        $this->assertNull($request->getOption('origin'));
+        $this->assertNull($request->getOption('ready'));
+    }
+
     protected function createResponse(array $headers, string $body): Response
     {
         $request = new Request('GET', 'https://example.com/api', null, [], []);
